@@ -582,9 +582,8 @@ mark{background:color-mix(in srgb,#F4C430 55%,transparent);color:inherit;border-
 :is(#catalog,#sResults).list .brandmk{width:26px;height:26px;right:6px;bottom:6px;border-radius:6px}
 @container (max-width:200px){.brandmk{width:26px;height:26px;right:6px;bottom:6px;border-radius:6px}}
 /* Conexión con la hoja */
-body.api #cfgTabs [data-cfgtab]:not([data-cfgtab="pedido"]){display:none}
-body.api .savebar,body.api .drafthint{display:none}
-body.api .adminsheet{padding-bottom:20px}
+body.api .drafthint,body.api #resetData{display:none!important}
+.savebar.busy .btn.pri,.savebar.busy .btn{opacity:.55;pointer-events:none}
 .apinote{background:var(--green-soft);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5}
 .apinote a{color:var(--green);font-weight:700}
 .loadbox{text-align:center;padding:50px 10px;color:var(--muted)}
@@ -800,7 +799,7 @@ body.api .adminsheet{padding-bottom:20px}
 <div class="modal" id="mAdmin" hidden>
   <div class="sheet wide adminsheet">
     <div class="sheet-h"><h2>⚙ Panel de la tienda</h2><button type="button" class="close" style="display:block" data-close="mAdmin" aria-label="Cerrar">×</button></div>
-    <div class="apinote" id="apiNote" hidden>Los <b>productos, precios, secciones, tiendas, horario y reparto</b> se cambian en la <span id="apiSheet">hoja de Google</span>. Los cambios se ven en la tienda en un minuto, más o menos. Los pedidos se apuntan solos en la pestaña «Pedidos».<br>Aquí puedes preparar pedidos y ajustar pesos. <button type="button" class="link" id="pinChange2">Cambiar la clave del panel</button></div>
+    <div class="apinote" id="apiNote" hidden><b>Todo</b> lo que cambies aquí (productos, fotos, cabecera, logotipo, colores, ofertas, tiendas, horario…) se guarda en la <span id="apiSheet">hoja de Google</span> al pulsar <b>Guardar cambios</b>, abajo. Los clientes lo ven en un minuto, más o menos. Las imágenes se suben a tu carpeta de Drive. <button type="button" class="link" id="pinChange2">Cambiar la clave del panel</button></div>
     <p class="hint drafthint">Mientras editas, la tienda de detrás te enseña cómo quedará. No se guarda nada hasta que pulses <b>Guardar cambios</b>. Las fotos y la clave sí se guardan al momento.</p>
 
     <div class="maintabs" id="cfgTabs" role="tablist" aria-label="Secciones del panel">
@@ -869,8 +868,8 @@ body.api .adminsheet{padding-bottom:20px}
             </label>
           </div>
         </div>
-        <h3>Cabecera de la tienda</h3>
-        <div class="headprev">
+        <h3 class="localonly">Cabecera de la tienda</h3>
+        <div class="headprev localonly">
           <div class="pv" id="pvBg"><span>Sin foto</span></div>
           <div class="ctl">
             <b>Foto de fondo</b>
@@ -882,7 +881,7 @@ body.api .adminsheet{padding-bottom:20px}
             </label>
           </div>
         </div>
-        <div class="headprev">
+        <div class="headprev localonly">
           <div class="pv" id="pvLogo"></div>
           <div class="ctl">
             <b>Logotipo</b>
@@ -1330,7 +1329,13 @@ shop.hours={...clone(DEF_HOURS),...(shop.hours||{})};
 shop.stores=Array.isArray(shop.stores)?shop.stores:clone(DEF_STORES);
 shop.rules={...DEF_RULES,...(shop.rules||{})};
 if(shop.phone==="34600123456") shop.phone=DEF_SHOP.phone;
-let catalogReady=!API_URL, catalogError=false;
+let catalogReady=!API_URL, catalogError=false, adminToken="";
+async function api(body){
+  const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),30000);
+  try{const r=await fetch(API_URL,{method:"POST",body:JSON.stringify(body),signal:ctl.signal});return await r.json()}
+  finally{clearTimeout(to)}
+}
+const sesionMsg="La sesión ha caducado. Cierra el panel y vuelve a entrar con tu clave.";
 if(API_URL){
   document.body.classList.add("api");
   const cc=store.get("suma_catalog_cache",null);
@@ -1344,6 +1349,10 @@ function applyCatalogData(d){
   if(d.horario&&d.horario.open) shop.hours={...clone(DEF_HOURS),...d.horario};
   if(d.nombre) shop.name=d.nombre;
   if(d.whatsapp) shop.phone=d.whatsapp;
+  const D=d.diseno||{};
+  shop.look={...DEF_LOOK,...(D.look||{})};
+  shop.offer={...clone(DEF_OFFER),...(D.offer||{})};
+  shop.head={...DEF_HEAD,...(D.head||{})};
 }
 async function loadCatalog(){
   catalogError=false;
@@ -1356,7 +1365,7 @@ async function loadCatalog(){
     applyCatalogData(d); catalogReady=true; store.set("suma_catalog_cache",d);
   }catch(e){ if(!catalogReady) catalogError=true; }
   for(const k in sel) delete sel[k];
-  renderTabs();renderCatalog();renderCart();applyShop();renderOpenChip();
+  applyLook();applyHead();renderTabs();renderCatalog();renderCart();applyShop();renderOpenChip();
 }
 let cart=store.get("suma_cart",[]);
 const sel={};
@@ -1383,6 +1392,7 @@ function save(){
 }
 /* Fotos y logotipo: se guardan al momento, también en lo ya publicado */
 function persistNow(mut){
+  if(API_URL){mut(cats,products,shop);updateDirty();return true}
   mut(cats,products,shop);
   if(draft&&pub){mut(pub.cats,pub.products,pub.shop);var ok=writeData(pub.cats,pub.products,pub.shop)}
   else var ok=writeData(cats,products,shop);
@@ -1735,10 +1745,27 @@ function readImage(file,max,alpha){
   });
 }
 let pick=null; // {type:"prod"|"cat", id}
+async function uploadImage(f,max,png,nombre){
+  const img=await readImage(f,max,png); toast("Subiendo la imagen…");
+  let d=null; try{d=await api({action:"foto",token:adminToken,nombre,data:img.split(",")[1],tipo:png?"image/png":"image/jpeg"})}catch(x){}
+  if(!d){toast("No se ha podido subir la imagen. Revisa la conexión.");return null}
+  if(!d.ok){toast(d.error==="sesion"?sesionMsg:d.error);return null}
+  return d;
+}
+async function uploadPicked(f){
+  const t=pick.type, id=pick.id, listo=()=>{updateDirty();toast("Imagen subida. Pulsa «Guardar cambios» para que quede puesta.")};
+  if(t==="headbg"){const d=await uploadImage(f,1280,false,"cabecera");if(!d)return;shop.head.bg=d.url;applyHead();renderHeadCfg();return listo()}
+  if(t==="logo"){const d=await uploadImage(f,400,true,"logotipo");if(!d)return;shop.head.logo=d.url;applyHead();renderHeadCfg();refreshShop();return listo()}
+  if(t==="stamp"){const d=await uploadImage(f,220,true,"sello");if(!d)return;const sid="u"+Date.now().toString(36);
+    shop.offer.list.push({id:sid,name:"Sello "+(shop.offer.list.length+1),img:d.url});shop.offer.stamp=sid;refreshShop();renderOffers();return listo()}
+  if(t==="cat"){const c=cats.find(x=>x.id===id);if(!c)return;const d=await uploadImage(f,300,false,"seccion-"+c.name);if(!d)return;c.img=d.url;refreshShop();renderCats();return listo()}
+  if(t==="prod"){const p=products.find(x=>x.id===id);if(!p)return;const d=await uploadImage(f,600,false,p.name);if(!d)return;p.img=d.url;p.foto=d.link;refreshShop();renderAdminProducts();return listo()}
+}
 function choosePhoto(type,id){pick={type,id};$("#filePick").value="";$("#filePick").click()}
 $("#filePick").addEventListener("change",async e=>{
   const f=e.target.files[0]; if(!f||!pick) return;
   try{
+    if(API_URL){ await uploadPicked(f); return; }
     if(pick.type==="headbg"||pick.type==="logo"){
       const isBg=pick.type==="headbg";
       const data=await readImage(f,isBg?1280:400,!isBg);
@@ -1752,6 +1779,17 @@ $("#filePick").addEventListener("change",async e=>{
       const nm="Sello "+(shop.offer.list.length+1);
       if(!persistNow((c,p,s)=>{s.offer.list.push({id,name:nm,img:data});s.offer.stamp=id})){persistNow((c,p,s)=>{s.offer.list=s.offer.list.filter(u=>u.id!==id);s.offer.stamp="texto"});return}
       refreshShop();renderOffers();toast("Sello subido y puesto por defecto");return;
+    }
+    if(API_URL){ await uploadPicked(f); return; }
+    if(false){
+      const prod=products.find(x=>x.id===pick.id); if(!prod) return;
+      const img=await readImage(f,600); toast("Subiendo la foto…");
+      let d=null; try{d=await api({action:"foto",token:adminToken,nombre:prod.name,data:img.split(",")[1]})}catch(x){}
+      if(!d){toast("No se ha podido subir la foto. Revisa la conexión.");return}
+      if(!d.ok){toast(d.error==="sesion"?sesionMsg:d.error);return}
+      prod.img=d.url; prod.foto=d.link; refreshShop(); renderAdminProducts();
+      toast("Foto subida. Pulsa «Guardar cambios» para que quede puesta.");
+      return;
     }
     const data=await readImage(f,pick.type==="prod"?480:200);
     const isP=pick.type==="prod", pid=pick.id;
@@ -1779,6 +1817,16 @@ $("#fPin").addEventListener("submit",async e=>{
   const left=Math.ceil((pinLockUntil-Date.now())/1000);
   if(left>0){pinErr(`Demasiados intentos. Espera ${left} segundos.`);return}
   const v=$("#pin").value.trim();
+  if(API_URL){
+    $("#pinErr").hidden=true; const sb=$("#fPin button[type=submit]"); sb.disabled=true; sb.textContent="Comprobando…";
+    let d=null; try{d=await api({action:"login",pin:v})}catch(x){}
+    sb.disabled=false; sb.textContent="Entrar";
+    if(!d){pinErr("No hay conexión con la hoja. Inténtalo otra vez.");return}
+    if(!d.ok){$("#pin").value="";pinErr(d.error||"Clave incorrecta.");return}
+    adminToken=d.token; closeModal("mPin");
+    if(d.cambiar) openPinNew(true); else afterLogin();
+    return;
+  }
   const ok=pinStore?(await hashPin(v))===pinStore.h:v==="1234";
   if(!ok){
     pinFails++; $("#pin").value="";
@@ -1802,6 +1850,18 @@ $("#fPinNew").addEventListener("submit",async e=>{
   e.preventDefault();
   const err=t=>{$("#pinNewErr").textContent=t;$("#pinNewErr").hidden=false};
   const a=$("#pinNew1").value.trim(), b=$("#pinNew2").value.trim();
+  if(API_URL){
+    if(!/^\d{4,8}$/.test(a)){err("La clave nueva tiene que tener de 4 a 8 cifras, solo números.");return}
+    if(a==="1234"||/^(\d)\1+$/.test(a)){err("Elige una clave menos fácil: ni 1234 ni todo el mismo número.");return}
+    if(a!==b){err("Las dos claves nuevas no coinciden.");return}
+    if(!adminToken){err("Primero entra con tu clave pulsando «Soy de la tienda».");return}
+    let d=null; try{d=await api({action:"clave",token:adminToken,actual:pinFirst?"":$("#pinOld").value.trim(),nueva:a})}catch(x){}
+    if(!d){err("No hay conexión con la hoja. Inténtalo otra vez.");return}
+    if(!d.ok){err(d.error==="sesion"?sesionMsg:d.error);return}
+    closeModal("mPinNew"); toast("Clave guardada");
+    if(pinFirst) afterLogin();
+    return;
+  }
   if(!pinFirst){const old=$("#pinOld").value.trim();
     const okOld=pinStore?(await hashPin(old))===pinStore.h:old==="1234";
     if(!okOld){err("La clave actual no es correcta.");return}}
@@ -1813,7 +1873,7 @@ $("#fPinNew").addEventListener("submit",async e=>{
   closeModal("mPinNew"); toast("Clave guardada");
   if(pinFirst) afterLogin();
 });
-function openAdmin(){if(API_URL){cfgTab="pedido";$("#apiNote").hidden=false;if(SHEET_URL)$("#apiSheet").innerHTML=`<a href="${esc(SHEET_URL)}" target="_blank" rel="noopener">hoja de Google</a>`}if(!store.set("suma_test",Date.now()))setTimeout(()=>toast(storeFail()),400);if(!draft){draft=true;pub=clone({cats,products,shop})}updateDirty();$("#aNombre").value=shop.name;$("#aTel").value=shop.phone;setCfgTab(cfgTab);openModal("mAdmin")}
+function openAdmin(){if(API_URL){$("#apiNote").hidden=false;if(SHEET_URL)$("#apiSheet").innerHTML=`<a href="${esc(SHEET_URL)}" target="_blank" rel="noopener">hoja de Google</a>`}if(!store.set("suma_test",Date.now()))setTimeout(()=>toast(storeFail()),400);if(!draft){draft=true;pub=clone({cats,products,shop})}updateDirty();$("#aNombre").value=shop.name;$("#aTel").value=shop.phone;setCfgTab(cfgTab);openModal("mAdmin")}
 function setView(v){setCfgTab(v==="prod"?"productos":(cfgTab==="productos"?"tienda":cfgTab))}
 
 let cfgTab="productos";
@@ -1943,6 +2003,7 @@ $("#admBody").addEventListener("click",e=>{
   const ed=e.target.closest("[data-edit]"); if(ed){openEdit(+ed.dataset.edit);return}
   if(mv){moveProduct(+mv.closest("tr").dataset.pid,+mv.dataset.mv);return}
   if(ph){choosePhoto("prod",+ph.dataset.photo);return}
+  if(nph&&API_URL){const o=products.find(x=>x.id===+nph.dataset.nophoto);if(o){o.img=null;o.foto="no"}refreshShop();renderAdminProducts();toast("Foto quitada. Pulsa «Guardar cambios».");return}
   if(nph){const id=+nph.dataset.nophoto;persistNow((c,p)=>{const o=p.find(x=>x.id===id);if(o)o.img=null});refreshShop();renderAdminProducts();toast("Foto quitada");return}
   if(s){const p=products.find(x=>x.id==s.closest("tr").dataset.pid);p[s.dataset.t]=!p[s.dataset.t];refreshShop();renderAdminProducts()}
   if(d){
@@ -2419,7 +2480,35 @@ function updateDirty(){
   }
   $("#saveBtn").disabled=!n; $("#discardBtn").hidden=!n;
 }
+let savingSheet=false;
+/* Diseño que se guarda en la hoja: sin imágenes metidas dentro (esas van a Drive) */
+function disenoParaGuardar(){
+  const sinDatos=v=>typeof v==="string"&&v.startsWith("data:")?null:v;
+  const head={...shop.head,bg:sinDatos(shop.head.bg),logo:sinDatos(shop.head.logo)};
+  const offer={...shop.offer,list:(shop.offer.list||[]).filter(u=>!String(u.img||"").startsWith("data:"))};
+  if(!offer.list.some(u=>u.id===offer.stamp)&&!BUILTIN_STAMPS.some(b=>b[0]===offer.stamp)) offer.stamp="texto";
+  return {look:{...shop.look},offer,head};
+}
+async function saveToSheet(){
+  if(savingSheet) return false; savingSheet=true;
+  const bar=$("#saveBar"); bar.classList.add("busy"); $("#saveMsg").textContent="Guardando en la hoja…";
+  try{
+    const d=await api({action:"guardar",token:adminToken,
+      secciones:cats.map(c=>({id:c.id,name:c.name,sub:c.sub||"",color:c.color,icon:c.icon,preps:c.preps||[],img:/^https?:/.test(c.img||"")?c.img:""})),
+      diseno:disenoParaGuardar(),
+      productos:products.map(p=>({id:p.id,cat:p.cat,sub:p.sub||"",name:p.name,desc:p.desc||"",price:p.price,unit:p.unit,step:p.step||null,
+        prepMode:p.prepMode||"cat",preps:p.preps||[],offer:!!p.offer,on:p.on!==false,emo:p.emo||"",foto:p.foto==null?"":p.foto,stamp:p.stamp||""})),
+      tiendas:shop.stores,reparto:shop.rules,horario:shop.hours,nombre:shop.name,whatsapp:shop.phone});
+    if(!d||!d.ok){toast(d&&d.error==="sesion"?sesionMsg:"No se ha podido guardar: "+(d&&d.error||"sin conexión"));return false}
+    pub=clone({cats,products,shop});
+    bar.dataset.state="saved"; clearTimeout(savedTimer);
+    savedTimer=setTimeout(()=>{if(bar.dataset.state==="saved"){bar.dataset.state="clean";updateDirty()}},3000);
+    return true;
+  }catch(e){toast("No hay conexión con la hoja. Inténtalo otra vez.");return false}
+  finally{savingSheet=false;bar.classList.remove("busy");updateDirty()}
+}
 function doSave(){
+  if(API_URL) return saveToSheet();
   if(!writeData(cats,products,shop)){toast(storeFail());return false}
   pub=clone({cats,products,shop});
   const bar=$("#saveBar"); bar.dataset.state="saved"; clearTimeout(savedTimer);
@@ -2443,14 +2532,14 @@ function adminCanClose(){
   if(draft&&diffCount()>0){updateDirty();showLeave(true);return false}
   draft=false;pub=null;return true;
 }
-$("#saveBtn").onclick=()=>{if(doSave())toast("Cambios guardados")};
+$("#saveBtn").onclick=async()=>{if(await doSave())toast(API_URL?"Guardado en la hoja. La tienda lo mostrará en un minuto.":"Cambios guardados")};
 $("#discardBtn").onclick=e=>{
   const b=e.currentTarget;
   if(!b.dataset.confirm){b.dataset.confirm="1";b.textContent="¿Seguro? Pulsa otra vez";setTimeout(()=>{delete b.dataset.confirm;b.textContent="Descartar"},3000);return}
   delete b.dataset.confirm;b.textContent="Descartar";doDiscard();
 };
 $("#leaveStay").onclick=()=>showLeave(false);
-$("#leaveSave").onclick=()=>{if(doSave()){finishAdmin();toast("Cambios guardados")}};
+$("#leaveSave").onclick=async()=>{if(await doSave()){finishAdmin();toast(API_URL?"Guardado en la hoja.":"Cambios guardados")}};
 $("#leaveDiscard").onclick=()=>{doDiscard();finishAdmin()};
 window.addEventListener("beforeunload",e=>{if(draft&&diffCount()>0){e.preventDefault();e.returnValue=""}});
 
