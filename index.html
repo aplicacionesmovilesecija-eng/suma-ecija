@@ -116,7 +116,7 @@ main{padding-block:18px 120px}
 .badge{position:absolute;z-index:3;top:8px;left:8px;background:var(--surface);color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:4px}
 .card-b{padding:12px 12px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
 .card-b h3{margin:0;font-size:16px;line-height:1.25}
-.desc{margin:0;color:var(--muted);font-size:13px;flex:1}
+.desc{margin:0;color:var(--muted);font-size:13px}
 .price{display:flex;align-items:baseline;gap:4px}
 .price b{font-family:var(--f-mono);font-size:21px;font-weight:500;font-variant-numeric:tabular-nums}
 .price small{color:var(--muted);font-family:var(--f-mono)}
@@ -593,6 +593,33 @@ body.api .adminsheet{padding-bottom:20px}
 .go.busy{opacity:.7;pointer-events:none}
 .privtxt{font-size:13px;color:var(--muted)}
 #privL.miss{color:var(--accent);font-weight:700}
+/* Tarjetas muy estrechas (8 a 10 por fila) */
+@container (max-width:125px){
+  .card-b{padding:7px 7px 8px;gap:5px}
+  .card-b h3{font-size:12px}
+  .price b{font-size:14px}
+  .wrow .w{font-size:11px;padding:5px 2px}
+  .step button{width:24px}
+  .wval{min-width:40px;font-size:12px}
+  .add{font-size:11.5px;padding:8px 4px}
+  .nbtn{font-size:11px}
+  .row select{font-size:11.5px;padding:5px 4px}
+  .brandmk{width:20px;height:20px;right:5px;bottom:5px;border-radius:5px}
+  .badge{font-size:9px;padding:1px 5px}
+}
+@container (max-width:160px){.row .sub{display:none}}
+/* Sello de oferta en el hueco de la tarjeta */
+.offzone{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:0}
+.offzone.on{min-height:56px;padding:4px 0}
+.offzone .stamp,.offzone .badge,.offzone .ribbon{position:static;transform:none;inset:auto;top:auto;right:auto;left:auto;bottom:auto}
+.offzone .stamp.s{width:52px;height:52px}.offzone .stamp.m{width:72px;height:72px}.offzone .stamp.l{width:96px;height:96px}
+.offzone img.stamp{width:auto;max-width:90%;object-fit:contain}
+.offzone .badge.stamp-txt{background:var(--accent);color:var(--accent-ink);font-size:15px;letter-spacing:.1em;padding:7px 20px;border-radius:999px;box-shadow:0 3px 10px color-mix(in srgb,var(--accent) 40%,transparent)}
+.offzone .badge.stamp-txt.s{font-size:12px;padding:5px 14px}.offzone .badge.stamp-txt.l{font-size:18px;padding:9px 26px}
+.offzone .ribbon{width:100%;border-radius:8px;font-size:14px;padding:7px 0;box-shadow:none}
+@container (max-width:150px){.offzone .badge.stamp-txt{font-size:12px;padding:5px 12px}.offzone .stamp.m,.offzone .stamp.l{width:58px;height:58px}}
+:is(#catalog,#sResults).list .offzone.on{justify-content:flex-start;min-height:0}
+:is(#catalog,#sResults).list .offzone .stamp{width:48px;height:48px}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 
 /* Fotos e iconos personalizados */
@@ -886,7 +913,7 @@ body.api .adminsheet{padding-bottom:20px}
         <div class="two">
           <label>Texto del sello (para los sellos dibujados)<input class="in" id="oTexto" maxlength="14"></label>
           <label>Posición
-            <select class="in" id="oPos"><option value="tl">Arriba a la izquierda</option><option value="tr">Arriba a la derecha</option><option value="c">En el centro</option></select>
+            <select class="in" id="oPos"><option value="b">Debajo del precio, en grande</option><option value="tl">Arriba a la izquierda</option><option value="tr">Arriba a la derecha</option><option value="c">En el centro</option></select>
           </label>
           <label>Tamaño
             <select class="in" id="oSize"><option value="s">Pequeño</option><option value="m">Mediano</option><option value="l">Grande</option></select>
@@ -1023,7 +1050,7 @@ body.api .adminsheet{padding-bottom:20px}
           <button type="button" data-sview="grid" aria-pressed="true"><svg><use href="#i-grid"/></svg><span class="lbl">Cuadrícula</span></button>
           <button type="button" data-sview="list" aria-pressed="false"><svg><use href="#i-list"/></svg><span class="lbl">Filas</span></button>
         </div>
-        <label class="scols" id="sColsWrap">Por fila<input type="range" id="sCols" min="1" max="4" step="1" value="2" aria-label="Resultados por fila"><b class="mono" id="sColsN">2</b></label>
+        <label class="scols" id="sColsWrap">Por fila<input type="range" id="sCols" min="1" max="10" step="1" value="2" aria-label="Resultados por fila"><b class="mono" id="sColsN">2</b></label>
       </div>
       <p class="sstatus" id="sStatus" role="status">Escribe al menos 3 letras.</p>
     </div>
@@ -1055,7 +1082,7 @@ body.api .adminsheet{padding-bottom:20px}
       </div>
       <div id="colsWrap" class="vgroup">
         <b class="vlab">Productos por fila</b>
-        <div class="vslider"><span class="mono vmin">1</span><input type="range" id="cols" min="1" max="6" step="1" value="2" aria-label="Productos por fila"><span class="mono vmax" id="colsMax">6</span><b class="mono vval" id="colsN">2</b></div>
+        <div class="vslider"><span class="mono vmin">1</span><input type="range" id="cols" min="1" max="10" step="1" value="2" aria-label="Productos por fila"><span class="mono vmax" id="colsMax">10</span><b class="mono vval" id="colsN">2</b></div>
       </div>
     </div>
     <div class="vgroup">
@@ -1275,7 +1302,7 @@ Object.entries(RAW).forEach(([cat,list])=>list.forEach(([sub,name,desc,price,uni
 const WEIGHTS=[0.25,0.5,1,1.5,2];
 const clone=o=>JSON.parse(JSON.stringify(o));
 const DEF_LOOK={font:1,mode:"auto",accent:null,green:null,wa:null,view:"grid",cartPc:"float",brandCards:true};
-const DEF_OFFER={stamp:"texto",text:"Oferta",pos:"tl",size:"m",list:[]};
+const DEF_OFFER={stamp:"texto",text:"Oferta",pos:"b",size:"m",list:[],posV:2};
 const DEF_HEAD={bg:null,dark:40,height:"a",logo:null,logoSize:120,pos:null};
 const DEF_HOURS={
   open:[0,1,2,3,4,5].map(()=>({on:true,r:[["09:00","21:30"],["",""]]})).concat([{on:false,r:[["",""],["",""]]}]),
@@ -1297,6 +1324,7 @@ let products=store.get("suma_products_v4",clone(SEED));
 let shop=store.get("suma_shop",clone(DEF_SHOP));
 shop.look={...DEF_LOOK,...(shop.look||{})};
 shop.offer={...clone(DEF_OFFER),...(shop.offer||{})};
+if(shop.offer.posV!==2){shop.offer.pos="b";shop.offer.posV=2}
 shop.head={...DEF_HEAD,...(shop.head||{})};
 shop.hours={...clone(DEF_HOURS),...(shop.hours||{})};
 shop.stores=Array.isArray(shop.stores)?shop.stores:clone(DEF_STORES);
@@ -1394,11 +1422,12 @@ function cardHTML(p){
   const prep=preps.length>1?`<div class="row"><select id="prep-${p.id}" data-prep="${p.id}" aria-label="Elige el corte" class="${s.prep?"":"req"}"><option value="" disabled ${s.prep?"":"selected"}>¿Cómo lo quieres?</option>${preps.map(x=>`<option ${x===s.prep?"selected":""}>${esc(x)}</option>`).join("")}</select></div>`:"";
   return `<article class="card ${p.on?"":"off"}" data-card="${p.id}">
     <div class="thumb" style="background:${c.color}">${thumbHTML(p,c)}${shop.look.brandCards?`<img class="brandmk" src="${shop.head.logo||document.getElementById("logoSvg").src}" alt="">`:""}
-      ${p.offer?stampHTML(p.stamp):""}${!p.on?'<span class="badge out">Agotado hoy</span>':""}</div>
+      ${p.offer&&shop.offer.pos!=="b"?stampHTML(p.stamp):""}${!p.on?'<span class="badge out">Agotado hoy</span>':""}</div>
     <div class="card-b">
       <h3>${esc(p.name)}</h3><p class="desc">${esc(p.desc)}</p>
       <div class="price"><b>${eur(p.price)}</b><small>/${p.unit==="kg"?"kg":"ud"}</small></div>
       ${p.on?qty+prep:""}
+      <div class="offzone ${p.offer&&shop.offer.pos==="b"?"on":""}">${p.offer&&shop.offer.pos==="b"?stampHTML(p.stamp):""}</div>
       ${p.on?`<div class="pnote">${s.noteOpen||s.note?`<input class="in nin" id="note-${p.id}" data-note="${p.id}" maxlength="100" placeholder="Nota: bien maduros, sin grasa…" value="${esc(s.note)}" aria-label="Nota para ${esc(p.name)}">`:`<button type="button" class="link nbtn" data-noteopen="${p.id}">✎ Añadir nota</button>`}</div>`:""}
       ${(()=>{const needW=p.unit==="kg"&&!s.w, needP=preps.length>1&&!s.prep, need=needW||needP;return `<button class="add" data-add="${p.id}" ${!p.on||need?"disabled":""}>${!p.on?"No disponible hoy":needW&&needP?"Elige peso y cómo":needW?"Elige el peso":needP?"Elige cómo lo quieres":`Añadir · <span class="mono">${eur(amount)}</span>`}</button>`})()}
     </div></article>`;
@@ -1456,7 +1485,7 @@ function stampHTML(id){
   if(!BUILTIN_STAMPS.some(b=>b[0]===k)&&!o.list.some(u=>u.id===k)) k="texto";
   const cls=`stamp ${o.pos} ${o.size}`;
   const fs=t.length>8?11:t.length>6?13:15;
-  if(k==="texto") return `<span class="badge stamp-txt ${o.pos}">${t}</span>`;
+  if(k==="texto") return `<span class="badge stamp-txt ${o.pos} ${o.size}">${t}</span>`;
   if(k==="cinta") return `<span class="ribbon">${t}</span>`;
   if(k==="sello") return `<svg class="${cls}" viewBox="0 0 100 100" aria-label="${t}"><circle cx="50" cy="50" r="47" fill="var(--accent)"/><circle cx="50" cy="50" r="40" fill="none" stroke="var(--accent-ink)" stroke-width="2.5" stroke-dasharray="4 4"/><text x="50" y="${50+fs*0.35}" text-anchor="middle" font-family="Figtree, sans-serif" font-weight="800" font-size="${fs+2}" fill="var(--accent-ink)" style="text-transform:uppercase">${t.toUpperCase()}</text></svg>`;
   if(k==="estrella") return `<svg class="${cls}" viewBox="0 0 100 100" aria-label="${t}"><polygon points="${starPoints(16,49,39)}" fill="#F4C430" stroke="var(--accent)" stroke-width="2"/><text x="50" y="${50+fs*0.35}" text-anchor="middle" font-family="Figtree, sans-serif" font-weight="800" font-size="${fs}" fill="#E8141B">${t.toUpperCase()}</text></svg>`;
@@ -2328,7 +2357,7 @@ function applyCartMode(){
 }
 function maxCols(){
   const w=$("#catalog").clientWidth-32;
-  return Math.max(1,Math.min(6,Math.floor((w+12)/(112+12))));
+  return Math.max(1,Math.min(10,Math.floor((w+12)/(96+12))));
 }
 function defaultCols(){return window.innerWidth<600?2:window.innerWidth<1000?3:4}
 function applyView(){
@@ -2620,7 +2649,7 @@ $("#sInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault
 $("#sClear").onclick=()=>{$("#sInput").value="";runSearch();$("#sInput").focus()};
 function applySearchView(){
   const view=viewPref.sView||"grid", box=$("#sResults");
-  const w=box.clientWidth||$(".searchsheet").clientWidth-40, mx=Math.max(1,Math.min(6,Math.floor((w+12)/(112+12))));
+  const w=box.clientWidth||$(".searchsheet").clientWidth-40, mx=Math.max(1,Math.min(10,Math.floor((w+12)/(96+12))));
   const cols=Math.max(1,Math.min(viewPref.sCols||(window.innerWidth<600?2:4),mx));
   box.style.setProperty("--scols",cols); box.classList.toggle("list",view==="list");
   document.querySelectorAll("[data-sview]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.sview===view));
