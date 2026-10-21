@@ -106,8 +106,8 @@ main{padding-block:18px 120px}
 /* Etiqueta de producto */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;min-width:0;container-type:inline-size}
 .card.off{opacity:.55}
-.thumb{height:92px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.thumb svg.ani{width:74px;height:74px;opacity:.9}
+.thumb{aspect-ratio:1/1;height:auto;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.thumb svg.ani{width:45%;height:45%;opacity:.9}
 .thumb .marble{position:absolute;inset:0;opacity:.18;background:
   radial-gradient(ellipse 60% 20% at 30% 40%,#fff 0 40%,transparent 41%),
   radial-gradient(ellipse 40% 12% at 70% 70%,#fff 0 40%,transparent 41%),
@@ -306,7 +306,6 @@ table.hours tr.off td{color:var(--muted)}
 
 /* Tarjetas estrechas (3 o más por fila en el móvil) */
 @container (max-width:200px){
-  .thumb{height:80px}
   .thumb svg.ani{width:52px;height:52px}
   .card-b{padding:9px 9px 10px;gap:6px}
   .card-b h3{font-size:14px;line-height:1.2}
@@ -327,7 +326,7 @@ table.hours tr.off td{color:var(--muted)}
 
 /* Vista en filas */
 :is(#catalog,#sResults).list .card{flex-direction:row;min-height:118px}
-:is(#catalog,#sResults).list .thumb{width:118px;height:auto;flex:none;align-self:stretch}
+:is(#catalog,#sResults).list .thumb{width:118px;height:118px;flex:none;align-self:flex-start}
 :is(#catalog,#sResults).list .thumb svg.ani{width:58px;height:58px}
 :is(#catalog,#sResults).list .card-b{padding:10px 12px 12px;gap:6px;min-width:0}
 :is(#catalog,#sResults).list .card-b h3{font-size:15.5px}
@@ -337,7 +336,7 @@ table.hours tr.off td{color:var(--muted)}
 :is(#catalog,#sResults).list .stamp.m{width:52px;height:52px}
 :is(#catalog,#sResults).list .ribbon{top:12px;right:-40px;font-size:10px}
 @media (max-width:420px){
-  :is(#catalog,#sResults).list .thumb{width:96px}
+  :is(#catalog,#sResults).list .thumb{width:96px;height:96px}
   :is(#catalog,#sResults).list .wrow .w{padding:6px 8px}
 }
 /* Avisos del formulario */
@@ -558,11 +557,10 @@ mark{background:color-mix(in srgb,#F4C430 55%,transparent);color:inherit;border-
 /* Logo y dibujos de producto */
 .logo-wrap img.logo,.logo-wrap #logoImg{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
 .headprev .pv img{background:#fff}
-.thumb .emo{position:relative;font-size:58px;line-height:1;filter:drop-shadow(0 3px 5px rgba(0,0,0,.28))}
+.thumb .emo{position:relative;font-size:min(40cqw,110px);line-height:1;filter:drop-shadow(0 3px 5px rgba(0,0,0,.28))}
 .ph .emo{font-size:34px;line-height:1}
 .fly-y .emo{font-size:32px;line-height:1}
 :is(#catalog,#sResults).list .thumb .emo{font-size:50px}
-@container (max-width:200px){.thumb .emo{font-size:46px}}
 /* Ventana de tiendas */
 .chipbtn{cursor:pointer;color:var(--ink);font:inherit;font-size:13px;font-weight:600;border-color:var(--accent);gap:5px}
 .chipbtn::after{content:"›";font-size:16px;line-height:1;color:var(--accent);font-weight:800}
@@ -598,7 +596,7 @@ body.api .adminsheet{padding-bottom:20px}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 
 /* Fotos e iconos personalizados */
-.thumb img.photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.thumb img.photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff;z-index:1}
 .thumb img.catimg{width:74px;height:74px;border-radius:12px;object-fit:cover;position:relative;border:3px solid rgba(255,255,255,.85)}
 .tab img{width:30px;height:30px;border-radius:6px;object-fit:cover;flex:none}
 .fly-y img{width:100%;height:100%;border-radius:50%;object-fit:cover}
@@ -1102,16 +1100,18 @@ body.api .adminsheet{padding-bottom:20px}
 <input type="file" id="filePick" accept="image/*" hidden>
 <div class="toast" id="toast" hidden></div>
 
+<script src="config.js"></script>
 <script>
 /* ======================================================================
    CONEXIÓN CON LA HOJA DE GOOGLE
-   Pega entre las comillas la URL de la «app web» de Apps Script
-   (termina en /exec). Si se deja vacío, la tienda funciona como demo
-   con los productos de ejemplo que lleva dentro.
+   La dirección de la hoja va en el archivo config.js, junto a esta
+   página. Así se puede cambiar esta página sin perder la conexión.
+   Sin config.js, la tienda funciona como demo con los productos de
+   ejemplo que lleva dentro.
    ====================================================================== */
-const API_URL = "https://script.google.com/macros/s/AKfycbxrYNUcPzn5xQu2uI1sL-sRmApjCbZcZol9ZQsWRLZQAdWe8PDo7nif_KWTXNK3h5QNeg/exec";
-/* Opcional: enlace a la hoja, para que la tienda lo vea en su panel */
-const SHEET_URL = "";
+const CFG = window.TIENDA_CONFIG || {};
+const API_URL = /^https:\/\/\S+$/.test(CFG.API_URL||"") ? CFG.API_URL.trim() : "";
+const SHEET_URL = /^https:\/\/\S+$/.test(CFG.SHEET_URL||"") ? CFG.SHEET_URL.trim() : "";
 /* ====================================================================== */
 const ICONS=[["fruta","Fruta"],["carne","Carne"],["pescado","Pescado"],["charcu","Charcutería"],["pan","Pan"],["leche","Lácteos"],["despensa","Despensa"],["bebida","Bebidas"],["congelado","Congelados"],["limpieza","Limpieza"],["higiene","Higiene"],["mascota","Mascotas"],["pollo","Pollo"],["cerdo","Cerdo"],["todo","Varios"]];
 const SEED_CATS=[
@@ -1378,10 +1378,11 @@ function getSel(p){
   return sel[p.id];
 }
 function thumbHTML(p,c){
-  if(p.img) return `<img class="photo" src="${p.img}" alt="${esc(p.name)}">`;
-  if(p.emo) return `<div class="marble"></div><span class="emo" role="img" aria-label="${esc(p.name)}">${esc(p.emo)}</span>`;
-  if(c.img) return `<div class="marble"></div><img class="catimg" src="${c.img}" alt="">`;
-  return `<div class="marble"></div><svg class="ani" style="color:#fff"><use href="#i-${c.icon}"/></svg>`;
+  const base=p.emo?`<div class="marble"></div><span class="emo" role="img" aria-label="${esc(p.name)}">${esc(p.emo)}</span>`
+    :c.img?`<div class="marble"></div><img class="catimg" src="${c.img}" alt="">`
+    :`<div class="marble"></div><svg class="ani" style="color:#fff"><use href="#i-${c.icon}"/></svg>`;
+  /* La foto va encima del dibujo: si no carga, se quita y se ve el dibujo */
+  return p.img?base+`<img class="photo" src="${esc(p.img)}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="this.remove()">`:base;
 }
 function cardHTML(p){
   const c=catOf(p.cat), s=getSel(p);
